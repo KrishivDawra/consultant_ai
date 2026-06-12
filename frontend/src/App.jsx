@@ -1,17 +1,48 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { Routes, Route } from "react-router-dom";
+
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
+import UploadConsultation from "./pages/UploadConsultation";
+import AskAI from "./pages/AskAI";
+
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <h1 className='text-amber-300'>Krishiv Dawra</h1>
-    </>
-  )
+    <Routes>
+      <Route path="/login" element={<Login />} />
+
+      <Route path="/register" element={<Register />} />
+
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/upload"
+        element={
+          <ProtectedRoute>
+            <UploadConsultation />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/ask"
+        element={
+          <ProtectedRoute>
+            <AskAI />
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
+  );
 }
 
-export default App
+export default App;

@@ -1,12 +1,15 @@
 const cloudinary = require("../config/cloudinary");
 const Consultation = require("../models/Consultation");
 
+// AI SERVICE (Groq)
 const {
   generateTranscript,
   generateSummary,
   generateInsights,
-} = require("../services/geminiService");
+} = require("../services/aiService");
 
+// 🧠 RAG IMPORT (ADD THIS)
+const { storeConsultationEmbedding } = require("../rag/ragService");
 
 // ================================
 // 🔥 Cloudinary Upload Helper
@@ -28,7 +31,6 @@ const streamUpload = (fileBuffer) => {
   });
 };
 
-
 // ================================
 // 🚀 Upload Consultation (MAIN API)
 // ================================
@@ -43,18 +45,18 @@ const uploadConsultation = async (req, res) => {
     // 1. Upload to Cloudinary
     const cloudResult = await streamUpload(file.buffer);
 
-    // 2. Generate AI Transcript (temporary prompt-based)
+    // 2. TRANSCRIPT
     const transcript = await generateTranscript(
       "User discussed project delays, system issues, and backend architecture challenges during consultation."
     );
 
-    // 3. Generate Summary
+    // 3. SUMMARY (Groq)
     const summary = await generateSummary(transcript);
 
-    // 4. Generate Insights
+    // 4. INSIGHTS (Groq)
     const insights = await generateInsights(transcript);
 
-    // 5. Save to MongoDB
+    // 5. SAVE TO DATABASE
     const consultation = await Consultation.create({
       userId: req.user?.userId || null,
       clientName: req.body.clientName,
@@ -63,6 +65,9 @@ const uploadConsultation = async (req, res) => {
       summary,
       insights,
     });
+
+    // 🧠 6. STORE EMBEDDING (RAG MEMORY) — ADD THIS
+    await storeConsultationEmbedding(consultation);
 
     return res.status(201).json({
       message: "Upload + AI processing successful",
@@ -74,20 +79,17 @@ const uploadConsultation = async (req, res) => {
   }
 };
 
-
 // ================================
 // 📄 Get All Consultations
 // ================================
 const getConsultations = async (req, res) => {
   try {
     const data = await Consultation.find().sort({ createdAt: -1 });
-
     res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
-
 
 module.exports = {
   uploadConsultation,
