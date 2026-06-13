@@ -5,17 +5,25 @@ import Navbar from "../components/Navbar";
 const UploadConsultation = () => {
   const [file, setFile] = useState(null);
   const [clientName, setClientName] = useState("");
+  const [transcript, setTranscript] = useState("");
   const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const handleUpload = async (e) => {
     e.preventDefault();
 
-    const formData = new FormData();
-
-    formData.append("file", file);
-    formData.append("clientName", clientName);
-
     try {
+      setLoading(true);
+
+      const formData = new FormData();
+
+      if (file) {
+        formData.append("file", file);
+      }
+
+      formData.append("clientName", clientName);
+      formData.append("transcript", transcript);
+
       const res = await api.post(
         "/consultations/upload",
         formData
@@ -23,7 +31,12 @@ const UploadConsultation = () => {
 
       setResult(res.data.consultation);
     } catch (err) {
-      alert(err.response?.data?.message);
+      alert(
+        err.response?.data?.message ||
+          "Upload failed"
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -31,19 +44,35 @@ const UploadConsultation = () => {
     <>
       <Navbar />
 
-      <div className="p-6 max-w-3xl mx-auto">
+      <div className="max-w-4xl mx-auto p-6">
         <h1 className="text-3xl font-bold mb-6">
-          Upload Consultation
+          Upload Astrology Consultation
         </h1>
 
-        <form onSubmit={handleUpload}>
+        <form
+          onSubmit={handleUpload}
+          className="bg-white shadow rounded p-6"
+        >
           <input
-            className="border w-full p-3 mb-3"
+            type="text"
             placeholder="Client Name"
+            className="border w-full p-3 mb-4 rounded"
             value={clientName}
             onChange={(e) =>
               setClientName(e.target.value)
             }
+            required
+          />
+
+          <textarea
+            rows={8}
+            className="border w-full p-3 mb-4 rounded"
+            placeholder="Enter consultation notes..."
+            value={transcript}
+            onChange={(e) =>
+              setTranscript(e.target.value)
+            }
+            required
           />
 
           <input
@@ -54,33 +83,52 @@ const UploadConsultation = () => {
             }
           />
 
-          <button className="bg-black text-white px-5 py-2 rounded">
-            Upload
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-black text-white px-6 py-3 rounded"
+          >
+            {loading
+              ? "Processing..."
+              : "Upload Consultation"}
           </button>
         </form>
 
         {result && (
-          <div className="mt-8 border p-4 rounded">
-            <h2 className="font-bold text-xl">
-              AI Results
+          <div className="mt-8 border rounded p-5">
+            <h2 className="text-2xl font-bold mb-4">
+              AI Analysis
             </h2>
 
-            <p className="mt-3">
-              <strong>Transcript:</strong>
-            </p>
-            <p>{result.transcript}</p>
+            <div className="mb-4">
+              <h3 className="font-semibold">
+                Transcript
+              </h3>
+              <p>{result.transcript}</p>
+            </div>
 
-            <p className="mt-3">
-              <strong>Summary:</strong>
-            </p>
-            <p>{result.summary}</p>
+            <div className="mb-4">
+              <h3 className="font-semibold">
+                Summary
+              </h3>
+              <p>{result.summary}</p>
+            </div>
 
-            <p className="mt-3">
-              <strong>Insights:</strong>
-            </p>
-            <pre className="bg-gray-100 p-3 rounded overflow-auto">
-              {result.insights}
-            </pre>
+            <div>
+              <h3 className="font-semibold">
+                Insights
+              </h3>
+
+              <pre className="bg-gray-100 p-4 rounded whitespace-pre-wrap">
+                {typeof result.insights === "string"
+                  ? result.insights
+                  : JSON.stringify(
+                      result.insights,
+                      null,
+                      2
+                    )}
+              </pre>
+            </div>
           </div>
         )}
       </div>

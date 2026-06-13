@@ -1,6 +1,7 @@
 const Groq = require("groq-sdk");
 const { getEmbedding } = require("./embedder");
 const { addDocument, search } = require("./vectorStore");
+const Consultation = require("../models/Consultation");
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -40,34 +41,27 @@ Summary: ${consultation.summary}
 // ---------------------------
 const askRag = async (question) => {
   try {
-    if (!question) {
-      return "Invalid question";
+    const consultations = await Consultation.find()
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    if (!consultations.length) {
+      return "No consultation data found";
     }
 
-    const queryEmbedding = await getEmbedding(question);
+    const context = consultations
+      .map(
+        (c) => `
+Client: ${c.clientName}
 
-    if (!queryEmbedding) {
-      return "Embedding generation failed";
-    }
+Transcript:
+${c.transcript}
 
-    const results = search(queryEmbedding, 3);
-
-    console.log("🔎 Retrieved Results:", results);
-
-    if (!results || results.length === 0) {
-      return "No relevant data found in memory";
-    }
-
-    const context = results
-      .map((r) => r?.metadata?.text)
-      .filter(Boolean)
+Summary:
+${c.summary}
+`
+      )
       .join("\n\n");
-
-    if (!context) {
-      return "No relevant data found in memory";
-    }
-
-    console.log("📦 Context Sent to LLM:", context);
 
     const response = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
@@ -75,19 +69,24 @@ const askRag = async (question) => {
         {
           role: "system",
           content: `
-You are a strict RAG assistant.
+You are Humara Pandit's AI assistant.
 
-RULES:
-- Use ONLY the provided context
-- If context is empty, say "No relevant data found in memory"
-- Do NOT use outside knowledge
-- Do NOT hallucinate or guess
+Answer ONLY from consultation history.
+
+Focus on:
+- Astrology consultations
+- Kundli analysis
+- Marriage issues
+- Career guidance
+- Planetary positions
+- Remedies
+- Follow ups
           `,
         },
         {
           role: "user",
           content: `
-Context:
+Consultation History:
 ${context}
 
 Question:
@@ -97,14 +96,10 @@ ${question}
       ],
     });
 
-    const answer = response.choices[0].message.content;
-
-    console.log("🧠 Final Answer:", answer);
-
-    return answer;
+    return response.choices[0].message.content;
   } catch (err) {
-    console.error("❌ RAG Error:", err.message);
-    return "RAG processing failed";
+    console.error(err);
+    return "Failed to answer question";
   }
 };
 

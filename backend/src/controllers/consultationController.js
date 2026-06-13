@@ -38,17 +38,24 @@ const uploadConsultation = async (req, res) => {
   try {
     const file = req.file;
 
-    if (!file) {
-      return res.status(400).json({ message: "No file uploaded" });
+    let recordingUrl = "";
+
+    if (file) {
+      const cloudResult = await streamUpload(file.buffer);
+      recordingUrl = cloudResult.secure_url;
     }
 
     // 1. Upload to Cloudinary
     const cloudResult = await streamUpload(file.buffer);
 
     // 2. TRANSCRIPT
-    const transcript = await generateTranscript(
-      "User discussed project delays, system issues, and backend architecture challenges during consultation."
-    );
+    if (!req.body.transcript) {
+      return res.status(400).json({
+        message: "Consultation notes are required",
+      });
+    }
+
+    const transcript = req.body.transcript;
 
     // 3. SUMMARY (Groq)
     const summary = await generateSummary(transcript);
@@ -67,7 +74,7 @@ const uploadConsultation = async (req, res) => {
     });
 
     // 🧠 6. STORE EMBEDDING (RAG MEMORY) — ADD THIS
-    await storeConsultationEmbedding(consultation);
+    //await storeConsultationEmbedding(consultation);
 
     return res.status(201).json({
       message: "Upload + AI processing successful",
